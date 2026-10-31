@@ -1,0 +1,6 @@
+{
+  "name": "StudySnap",
+  "description": "A comprehensive educational app with Google Sign-In, subject-wise notes, AI doubt solver, quizzes, and a student leaderboard.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
