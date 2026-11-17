@@ -1,21 +1,31 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, Firestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Initialize Firestore targeting the provisioned database ID with multi-tab persistence
-export const db = initializeFirestore(
-  app,
-  {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  },
-  (firebaseConfig as any).firestoreDatabaseId
-);
+const databaseId = (firebaseConfig as any).firestoreDatabaseId;
+
+// Initialize Firestore targeting the provisioned database ID with safe fallback
+let dbInstance: Firestore;
+try {
+  dbInstance = initializeFirestore(
+    app,
+    {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    },
+    databaseId
+  );
+} catch (err) {
+  console.warn('Persistent Firestore cache unavailable, using default instance:', err);
+  dbInstance = getFirestore(app, databaseId);
+}
+
+export const db = dbInstance;
 
 export const googleProvider = new GoogleAuthProvider();
 

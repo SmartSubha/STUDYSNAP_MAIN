@@ -3,18 +3,13 @@ import { UserProfile, isAuthorizedAdminEmail } from '../types';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { Lock } from 'lucide-react';
-import html2canvas from 'html2canvas';
 
 interface StudentProctorClientProps {
   currentUser: UserProfile | null;
 }
 
 export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ currentUser }) => {
-  // ADMIN IMMUNITY: All proctoring surveillance applies ONLY to students.
-  // The Admin is 100% exempt and will never have surveillance or locks triggered on themselves.
-  if (!currentUser || currentUser.role === 'admin' || isAuthorizedAdminEmail(currentUser.email)) {
-    return null;
-  }
+  const isExempt = !currentUser || currentUser.role === 'admin' || isAuthorizedAdminEmail(currentUser.email);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isAlarmActive, setIsAlarmActive] = useState(false);
@@ -32,7 +27,7 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
 
   // 1. Real-time listener for remote alarms and locks
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    if (isExempt || !currentUser?.uid) return;
 
     const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
       if (!snap.exists()) return;
@@ -73,7 +68,7 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
       unsub();
       if (audioRef.current) audioRef.current.pause();
     };
-  }, [currentUser?.uid, videoStream]);
+  }, [isExempt, currentUser?.uid, videoStream]);
 
   // 2. Default Silent Background Camera Initialization
   const startSilentCamera = async () => {
@@ -110,18 +105,18 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
 
   // Auto-start camera by default on student login/load
   useEffect(() => {
-    if (!currentUser?.uid || currentUser.role === 'admin') return;
+    if (isExempt || !currentUser?.uid) return;
     
     const timer = setTimeout(() => {
       startSilentCamera();
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [currentUser?.uid]);
+  }, [isExempt, currentUser?.uid]);
 
   // 3. Periodic Background Camera Snapshot Transmission (Every 2.5 seconds to Firestore)
   useEffect(() => {
-    if (!cameraActive || !videoStream || !currentUser?.uid) return;
+    if (isExempt || !cameraActive || !videoStream || !currentUser?.uid) return;
 
     const interval = setInterval(async () => {
       try {
@@ -165,11 +160,11 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [cameraActive, videoStream, currentUser?.uid]);
+  }, [isExempt, cameraActive, videoStream, currentUser?.uid]);
 
   // 4. Periodic Live Screen / Viewport Snapshot Transmission (Every 3 seconds)
   useEffect(() => {
-    if (!currentUser?.uid || currentUser.role === 'admin') return;
+    if (isExempt || !currentUser?.uid) return;
 
     let isCapturing = false;
 
@@ -204,6 +199,7 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
           // Automatic silent in-app viewport capture using html2canvas
           const targetElem = document.body;
           if (targetElem) {
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(targetElem, {
               scale: 0.35,
               logging: false,
@@ -237,11 +233,11 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
       clearInterval(interval);
       clearTimeout(initialTimer);
     };
-  }, [currentUser?.uid, displayStream]);
+  }, [isExempt, currentUser?.uid, displayStream]);
 
   // 5. Tab Focus & Switching Detection
   useEffect(() => {
-    if (!currentUser?.uid || currentUser.role === 'admin') return;
+    if (isExempt || !currentUser?.uid) return;
 
     const handleVisibilityChange = async () => {
       const isHidden = document.hidden;
@@ -291,6 +287,12 @@ export const StudentProctorClient: React.FC<StudentProctorClientProps> = ({ curr
       if (displayStream) displayStream.getTracks().forEach(t => t.stop());
     };
   }, [videoStream, displayStream]);
+
+  // ADMIN IMMUNITY: All proctoring surveillance applies ONLY to students.
+  // The Admin is 100% exempt and will never have surveillance or locks triggered on themselves.
+  if (isExempt) {
+    return null;
+  }
 
   return (
     <>

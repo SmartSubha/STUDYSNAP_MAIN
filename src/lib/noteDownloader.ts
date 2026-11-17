@@ -1,6 +1,4 @@
 import { Note } from '../types';
-import html2pdf from 'html2pdf.js';
-import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
 /**
@@ -417,6 +415,9 @@ export async function exportElementToPdf(elementId: string, filename: string) {
   };
 
   // @ts-ignore
+  const html2pdfMod = await import('html2pdf.js');
+  const html2pdf = html2pdfMod.default || html2pdfMod;
+  // @ts-ignore
   await html2pdf().set(opt).from(clone).save();
   toast.success("PDF saved successfully!");
 }
@@ -431,6 +432,8 @@ export async function exportElementToImage(elementId: string, filename: string, 
     return;
   }
 
+  const html2canvasMod = await import('html2canvas');
+  const html2canvas = (html2canvasMod.default || html2canvasMod) as any;
   const canvas = await html2canvas(element, {
     useCORS: true,
     scale: 2,

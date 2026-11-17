@@ -3,17 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { auth, db, googleProvider } from './lib/firebase';
 export { auth, db, googleProvider };
 import { onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, User } from 'firebase/auth';
 import { doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, collection, query, orderBy, limit, deleteDoc, addDoc, where } from 'firebase/firestore';
 import { Toaster, toast } from 'sonner';
-import html2canvas from 'html2canvas';
 import { 
   Home, 
   Users, 
-  CreditCard, 
   Crown,
   Settings, 
   BookOpen, 
@@ -110,21 +108,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserProfile, UserRole, Note, Quiz, LeaderboardEntry, Message, Notice, AppConfig, CalendarEvent, QRScan, SurveyConfig, isAuthorizedAdminEmail, AUTHORIZED_ADMIN_EMAILS } from './types';
-import { LockoutScreen } from './components/LockoutScreen';
-import { NoteAISummarizerDialog } from './components/NoteAISummarizerDialog';
-import { SmartSubhaAgentSupercharged } from './components/SmartSubhaAgentSupercharged';
-import { GoogleWorkspaceHub } from './components/GoogleWorkspaceHub';
-import { LiveMeetingsHub } from './components/LiveMeetingsHub';
-import { MandatorySurveyModal } from './components/MandatorySurveyModal';
-import { GoogleKeepIdeasHub } from './components/GoogleKeepIdeasHub';
-import { ProgressReportPdfGenerator } from './components/ProgressReportPdfGenerator';
-import { LearningRoadmap } from './components/LearningRoadmap';
-import { AdminSurveyManager } from './components/AdminSurveyManager';
-import { AdminMasterControlCenter } from './components/AdminMasterControlCenter';
-import { StudentProctorClient } from './components/StudentProctorClient';
-import { QuizBattleArena } from './components/QuizBattleArena';
-import { MultiAuthLoginModal } from './components/MultiAuthLoginModal';
-import { AdminPasswordModal } from './components/AdminPasswordModal';
+const LockoutScreen = lazy(() => import('./components/LockoutScreen').then(m => ({ default: m.LockoutScreen })));
+const NoteAISummarizerDialog = lazy(() => import('./components/NoteAISummarizerDialog').then(m => ({ default: m.NoteAISummarizerDialog })));
+const SmartSubhaAgentSupercharged = lazy(() => import('./components/SmartSubhaAgentSupercharged').then(m => ({ default: m.SmartSubhaAgentSupercharged })));
+const GoogleWorkspaceHub = lazy(() => import('./components/GoogleWorkspaceHub').then(m => ({ default: m.GoogleWorkspaceHub })));
+const LiveMeetingsHub = lazy(() => import('./components/LiveMeetingsHub').then(m => ({ default: m.LiveMeetingsHub })));
+const MandatorySurveyModal = lazy(() => import('./components/MandatorySurveyModal').then(m => ({ default: m.MandatorySurveyModal })));
+const GoogleKeepIdeasHub = lazy(() => import('./components/GoogleKeepIdeasHub').then(m => ({ default: m.GoogleKeepIdeasHub })));
+const ProgressReportPdfGenerator = lazy(() => import('./components/ProgressReportPdfGenerator').then(m => ({ default: m.ProgressReportPdfGenerator })));
+const LearningRoadmap = lazy(() => import('./components/LearningRoadmap').then(m => ({ default: m.LearningRoadmap })));
+const AdminSurveyManager = lazy(() => import('./components/AdminSurveyManager').then(m => ({ default: m.AdminSurveyManager })));
+const AdminMasterControlCenter = lazy(() => import('./components/AdminMasterControlCenter').then(m => ({ default: m.AdminMasterControlCenter })));
+const StudentProctorClient = lazy(() => import('./components/StudentProctorClient').then(m => ({ default: m.StudentProctorClient })));
+const QuizBattleArena = lazy(() => import('./components/QuizBattleArena').then(m => ({ default: m.QuizBattleArena })));
 import { 
   downloadNoteByNativeFormat, 
   downloadNoteAsHtml, 
@@ -138,7 +134,6 @@ import {
 } from './lib/noteDownloader';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
-import html2pdf from 'html2pdf.js';
 
 // Type helper for structured schema requests
 const Type = {
@@ -834,7 +829,7 @@ const ShareNoteDialog = ({ note, isOpen, onOpenChange, currentUser }: { note: No
                 <div key={u.uid} className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all group">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 border-2 border-white dark:border-slate-800 shadow-sm">
-                      <AvatarFallback className="text-xs bg-blue-100 text-blue-600 font-bold">{u.name[0]}</AvatarFallback>
+                      <AvatarFallback className="text-xs bg-blue-100 text-blue-600 font-bold">{u.name?.[0] || 'U'}</AvatarFallback>
                     </Avatar>
                     <div className="max-w-[180px]">
                       <div className="text-sm font-bold truncate text-slate-900 dark:text-white">{isAuthorizedAdminEmail(u.email) ? 'STUDYPOINT' : u.name}</div>
@@ -1188,7 +1183,7 @@ const LoginScreen = ({
   const [isCaptchaRotating, setIsCaptchaRotating] = useState(false);
 
   // Portal Flow State - Default to Role Select (Student Portal, Teacher Portal, Admin Portal)
-  const [portalStep, setPortalStep] = useState<'role-select' | 'teacher-pass' | 'admin-pass' | 'guest-pass'>('role-select');
+  const [portalStep, setPortalStep] = useState<'role-select' | 'teacher-pass' | 'admin-pass'>('role-select');
   const [portalPassword, setPortalPassword] = useState('');
   const [portalError, setPortalError] = useState('');
 
@@ -1528,28 +1523,6 @@ const LoginScreen = ({
                     </div>
                   </button>
                 </div>
-
-                <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setPortalStep('guest-pass')}
-                    className="text-xs text-amber-600 dark:text-amber-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-1.5"
-                  >
-                    <Sparkles size={13} />
-                    <span>Special Guest Pass Request →</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Portal Step: Guest Pass Request Modal */}
-            {portalStep === 'guest-pass' && (
-              <div className="space-y-4 text-left">
-                <MultiAuthLoginModal 
-                  onGoogleLogin={() => handleTriggerLogin('popup')}
-                  onAuthSuccess={onAuthSuccess}
-                  onBackToRoles={() => setPortalStep('role-select')}
-                />
               </div>
             )}
 
@@ -1973,6 +1946,7 @@ export default function App() {
 
   // Real-time active survey listener (Ensures survey is shown ONLY ONCE per device)
   useEffect(() => {
+    if (!profile?.uid) return;
     try {
       const q = query(collection(db, 'surveys'), where('isActive', '==', true), limit(1));
       const unsub = onSnapshot(q, (snap) => {
@@ -1999,6 +1973,7 @@ export default function App() {
 
   // Real-time student ideas counter for Admin blinking beacon
   useEffect(() => {
+    if (!user?.uid || !isAdminMode) return;
     try {
       const q = query(collection(db, 'studentIdeas'), orderBy('createdAt', 'desc'));
       const unsub = onSnapshot(q, (snap) => {
@@ -2007,7 +1982,7 @@ export default function App() {
       }, (err) => console.warn("Ideas listener:", err));
       return unsub;
     } catch {}
-  }, []);
+  }, [user?.uid, isAdminMode]);
 
   const handleAddPoints = async (pts: number) => {
     if (!profile) return;
@@ -2132,8 +2107,10 @@ export default function App() {
   } | null>(null);
   const [dismissedBroadcastId, setDismissedBroadcastId] = useState<string | null>(null);
 
-  // Real-time Global Synchronization Across All Web Devices & Users
+  // Real-time Global Synchronization Across All Web Devices & Users (Starts after sign-in for instant login render)
   useEffect(() => {
+    if (!user?.uid) return;
+
     // 1. Real-time App Configuration Sync (Instant sync on all user screens)
     const unsubConfig = onSnapshot(doc(db, 'config', 'app'), (snap) => {
       if (snap.exists()) {
@@ -2220,7 +2197,7 @@ export default function App() {
       unsubQuizzes();
       unsubLeaderboard();
     };
-  }, []);
+  }, [user?.uid]);
 
   const fetchCalendarEvents = async () => {
     if (!user) return;
@@ -2352,9 +2329,14 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    fetchConfig();
-    fetchData();
-    fetchCalendarEvents();
+    // Fetch user's quiz attempts directly; notes/notices/config/quizzes/calendar use real-time onSnapshot listeners above
+    getDocs(query(collection(db, 'quizAttempts'), where('userId', '==', user.uid), limit(50)))
+      .then((aSnap) => {
+        const attempts: Record<string, any> = {};
+        aSnap.docs.forEach(docSnap => { attempts[docSnap.data().quizId] = docSnap.data(); });
+        setUserAttempts(attempts);
+      })
+      .catch(() => {});
     if (profile?.role === 'admin') {
       fetchQRScanCount();
     }
@@ -2412,6 +2394,11 @@ export default function App() {
   }, [user, profile]);
 
   useEffect(() => {
+    // Safety release so a slow network or IndexedDB lock never traps the user on the splash spinner
+    const loadingFallbackTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2500);
+
     // Handle redirect result on load
     getRedirectResult(auth).catch((error) => {
       console.error("Redirect Login Error:", error);
@@ -2423,6 +2410,7 @@ export default function App() {
     });
 
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      clearTimeout(loadingFallbackTimer);
       try {
         if (u) {
           setUser(u);
@@ -2435,7 +2423,17 @@ export default function App() {
           
           const cacheKey = `profile_${u.uid}`;
           const cached = localStorage.getItem(cacheKey);
-          if (cached) setProfile(JSON.parse(cached));
+          if (cached) {
+            try {
+              const parsedCache = JSON.parse(cached) as UserProfile;
+              if (parsedCache?.uid) {
+                setProfile(parsedCache);
+                setLoading(false);
+              }
+            } catch {
+              localStorage.removeItem(cacheKey);
+            }
+          }
 
           const docRef = doc(db, 'users', u.uid);
           try {
@@ -2448,7 +2446,7 @@ export default function App() {
               }
               const today = new Date().toISOString().split('T')[0];
               if (userData.lastLogin !== today) {
-                 // Streak/Login logic (Optimized to merge write)
+                 // Streak/Login logic (Non-blocking background merge write)
                  const yesterday = new Date();
                  yesterday.setDate(yesterday.getDate() - 1);
                  const yesterdayStr = yesterday.toISOString().split('T')[0];
@@ -2459,7 +2457,7 @@ export default function App() {
                    newStreak = 1;
                  }
                  userData = { ...userData, streak: newStreak, lastLogin: today };
-                 await setDoc(docRef, { streak: newStreak, lastLogin: today }, { merge: true });
+                 setDoc(docRef, { streak: newStreak, lastLogin: today }, { merge: true }).catch(() => {});
               }
               // Multi-device Single Session Setup (Students only)
               let localSessionId = sessionStorage.getItem('active_student_session_id');
@@ -2481,7 +2479,7 @@ export default function App() {
              console.warn("Using profile from cache.");
           }
         } else {
-          // Check for custom authenticated user (Special Guest, Teacher, or Admin)
+          // Check for custom authenticated user (Teacher or Admin portal)
           const customUserJson = localStorage.getItem('custom_auth_user');
           if (customUserJson) {
             try {
@@ -2503,6 +2501,7 @@ export default function App() {
                 setProfile(null);
               }
             } catch {
+              localStorage.removeItem('custom_auth_user');
               setUser(null);
               setProfile(null);
             }
@@ -2519,6 +2518,7 @@ export default function App() {
     });
 
     return () => {
+      clearTimeout(loadingFallbackTimer);
       unsubscribe();
     };
   }, []);
@@ -2841,7 +2841,9 @@ export default function App() {
   if (!isSuperAdminUser && (profile.lockoutEnabled || profile.lockoutPermanentSiren)) {
     return (
       <>
-        <LockoutScreen profile={profile} />
+        <Suspense fallback={<div className="min-h-screen bg-[#030308]" />}>
+          <LockoutScreen profile={profile} />
+        </Suspense>
         <Toaster position="top-center" />
       </>
     );
@@ -2948,7 +2950,9 @@ export default function App() {
       
       {!isSuperAdminUser && (
         profile?.lockoutEnabled ? (
-          <LockoutScreen profile={profile} />
+          <Suspense fallback={<div className="fixed inset-0 z-[999999] bg-[#030308]" />}>
+            <LockoutScreen profile={profile} />
+          </Suspense>
         ) : isLocked && (
           <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center text-green-500 font-mono p-8 text-center">
             <Lock size={64} className="mb-6 animate-bounce" />
@@ -3146,44 +3150,52 @@ export default function App() {
             )}
             {activeTab === 'roadmap' && (
               <div className="w-full max-w-4xl mx-auto">
-                <LearningRoadmap 
-                  currentUser={profile} 
-                  notes={notes} 
-                  onOpenNote={(n) => setSelectedPreviewNote(n)}
-                  onAddPoints={handleAddPoints}
-                />
+                <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Learning Roadmap...</div>}>
+                  <LearningRoadmap 
+                    currentUser={profile} 
+                    notes={notes} 
+                    onOpenNote={(n) => setSelectedPreviewNote(n)}
+                    onAddPoints={handleAddPoints}
+                  />
+                </Suspense>
               </div>
             )}
             {activeTab === 'workspace' && (
               <div className="w-full max-w-4xl mx-auto">
-                <GoogleWorkspaceHub 
-                  notes={notes} 
-                  currentUser={profile} 
-                  isAdmin={isAdminMode} 
-                />
+                <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Google Workspace...</div>}>
+                  <GoogleWorkspaceHub 
+                    notes={notes} 
+                    currentUser={profile} 
+                    isAdmin={isAdminMode} 
+                  />
+                </Suspense>
               </div>
             )}
             {activeTab === 'admin' && profile && (
               <div className="w-full max-w-4xl mx-auto">
-                <AdminMasterControlCenter 
-                  currentUser={profile} 
-                  notes={notes} 
-                  quizzes={quizzes} 
-                  appConfig={appConfig}
-                  onRefreshAll={() => fetchData(true)}
-                />
+                <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Admin Master Hub...</div>}>
+                  <AdminMasterControlCenter 
+                    currentUser={profile} 
+                    notes={notes} 
+                    quizzes={quizzes} 
+                    appConfig={appConfig}
+                    onRefreshAll={() => fetchData(true)}
+                  />
+                </Suspense>
               </div>
             )}
             {activeTab === 'notice' && <NoticeSection notices={notices} isAdmin={isAdminMode} onImageClick={setSelectedImage} />}
             {activeTab === 'community' && <CommunitySection currentUser={profile} onPreviewNote={handlePreviewNote} />}
             {activeTab === 'battle' && (
               <div className="w-full max-w-4xl mx-auto">
-                <QuizBattleArena 
-                  currentUser={profile} 
-                  quizzes={quizzes} 
-                  users={[]} 
-                  onExitBattle={() => setActiveTab('home')}
-                />
+                <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Battle Arena...</div>}>
+                  <QuizBattleArena 
+                    currentUser={profile} 
+                    quizzes={quizzes} 
+                    users={[]} 
+                    onExitBattle={() => setActiveTab('home')}
+                  />
+                </Suspense>
               </div>
             )}
             {activeTab === 'settings' && (
@@ -3291,23 +3303,29 @@ export default function App() {
       </AnimatePresence>
 
       {/* Mandatory Full-Screen Survey Modal (Blocks access until filled - Admin Exempt) */}
-      <MandatorySurveyModal 
-        activeSurvey={activeSurvey} 
-        currentUser={profile} 
-        isAdmin={isAdminMode} 
-        onCompleted={(surveyId) => {
-          localStorage.setItem(`device_survey_completed_${surveyId}`, 'true');
-          setActiveSurvey(null);
-        }}
-      />
+      <Suspense fallback={null}>
+        <MandatorySurveyModal 
+          activeSurvey={activeSurvey} 
+          currentUser={profile} 
+          isAdmin={isAdminMode} 
+          onCompleted={(surveyId) => {
+            localStorage.setItem(`device_survey_completed_${surveyId}`, 'true');
+            setActiveSurvey(null);
+          }}
+        />
+      </Suspense>
 
       {/* Student Proctoring Client & Threat Lock Monitor */}
-      <StudentProctorClient currentUser={profile} />
+      <Suspense fallback={null}>
+        <StudentProctorClient currentUser={profile} />
+      </Suspense>
 
       {/* Google Keep Ideas Modal */}
       <Dialog open={isKeepIdeasOpen} onOpenChange={setIsKeepIdeasOpen}>
         <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] overflow-y-auto rounded-[2.5rem] p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
-          <GoogleKeepIdeasHub currentUser={profile} isAdmin={isAdminMode} />
+          <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Ideas Hub...</div>}>
+            <GoogleKeepIdeasHub currentUser={profile} isAdmin={isAdminMode} />
+          </Suspense>
         </DialogContent>
       </Dialog>
 
@@ -5148,11 +5166,13 @@ const Dashboard = ({
 
             {/* Academic Growth Progress Report PDF & Quick Links */}
             <div className="mt-5 pt-4 border-t border-white/20 space-y-2.5">
-              <ProgressReportPdfGenerator 
-                profile={profile} 
-                quizzes={quizzes} 
-                notes={notes} 
-              />
+              <Suspense fallback={null}>
+                <ProgressReportPdfGenerator 
+                  profile={profile} 
+                  quizzes={quizzes} 
+                  notes={notes} 
+                />
+              </Suspense>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -5205,7 +5225,9 @@ const Dashboard = ({
       {/* Smart Subha AI Agent (© Smart Subha) in Home Tab */}
       {activeTab === 'home' && activeSubject === 'All' && (
         <div id="smart-subha-ai-agent" className="w-full max-w-4xl mx-auto">
-          <SmartSubhaAiAgent />
+          <Suspense fallback={<div className="p-6 text-center text-xs font-bold text-slate-400">Loading AI Copilot...</div>}>
+            <SmartSubhaAiAgent />
+          </Suspense>
         </div>
       )}
 
@@ -5250,7 +5272,9 @@ const Dashboard = ({
                 </Button>
               </div>
 
-              <AdminSurveyManager currentUser={profile} isAdmin={isAdminMode} />
+              <Suspense fallback={null}>
+                <AdminSurveyManager currentUser={profile} isAdmin={isAdminMode} />
+              </Suspense>
               <section className="bg-slate-50 dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-800">
                 <FeedbackList isAdmin={isAdminMode} />
               </section>
@@ -5859,6 +5883,8 @@ const NoteContentViewer = ({
             };
             
             // @ts-ignore
+            const { default: html2pdf } = await import('html2pdf.js');
+            // @ts-ignore
             await html2pdf().set(opt).from(clone).save();
           });
           resolve(true);
@@ -5923,6 +5949,7 @@ const NoteContentViewer = ({
             // Wait brief moment for layout/mounting
             await new Promise((r) => setTimeout(r, 150));
 
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(wrapper, {
               useCORS: true,
               allowTaint: true,
@@ -6129,11 +6156,15 @@ const NoteContentViewer = ({
           <NoteAISummary note={note} />
         </div>
       </div>
-      <NoteAISummarizerDialog 
-        note={note} 
-        isOpen={showSummarizerDialog} 
-        onOpenChange={setShowSummarizerDialog} 
-      />
+      {showSummarizerDialog && (
+        <Suspense fallback={null}>
+          <NoteAISummarizerDialog 
+            note={note} 
+            isOpen={showSummarizerDialog} 
+            onOpenChange={setShowSummarizerDialog} 
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
@@ -6398,11 +6429,15 @@ const NoteCard = ({ note, isAdmin, userId, appConfig, isGlobalUnlocked, setIsGlo
       </CardContent>
     </Card>
 
-    <NoteAISummarizerDialog 
-      note={note} 
-      isOpen={showSummarizer} 
-      onOpenChange={setShowSummarizer} 
-    />
+    {showSummarizer && (
+      <Suspense fallback={null}>
+        <NoteAISummarizerDialog 
+          note={note} 
+          isOpen={showSummarizer} 
+          onOpenChange={setShowSummarizer} 
+        />
+      </Suspense>
+    )}
 
     <Dialog open={showLockPrompt} onOpenChange={setShowLockPrompt}>
         <DialogContent className="max-w-md rounded-[2.5rem]">
@@ -8487,10 +8522,12 @@ const CommunitySection = ({ currentUser, onPreviewNote }: { currentUser: UserPro
 
       {communityTab === 'rooms' ? (
         <div className="w-full max-w-4xl mx-auto">
-          <LiveMeetingsHub 
-            currentUser={currentUser} 
-            isAdmin={currentUser.role === 'admin' || currentUser.email === 'sanpuianup88@gmail.com'} 
-          />
+          <Suspense fallback={<div className="py-12 text-center text-xs font-bold text-slate-400">Loading Virtual Study Rooms...</div>}>
+            <LiveMeetingsHub 
+              currentUser={currentUser} 
+              isAdmin={currentUser.role === 'admin' || isAuthorizedAdminEmail(currentUser.email)} 
+            />
+          </Suspense>
         </div>
       ) : (
         <>
@@ -8962,54 +8999,6 @@ const CommunitySection = ({ currentUser, onPreviewNote }: { currentUser: UserPro
     </div>
   );
 };
-
-const PaymentSection = () => (
-  <div className="space-y-6 py-4 flex flex-col items-center w-full max-w-4xl mx-auto">
-    <PortfolioLink variant="large" />
-    <div className="text-center space-y-4 w-full">
-      <div className="w-full max-w-md mx-auto aspect-video rounded-3xl overflow-hidden shadow-lg border-4 border-white">
-        <img 
-          src="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800" 
-          alt="Donation" 
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-      <div className="space-y-2">
-        <h2 className="text-2xl font-bold">Support StudySnap</h2>
-        <p className="text-slate-500">Scan the QR code to contribute and help us grow!</p>
-      </div>
-    </div>
-    
-    <Card className="max-w-md mx-auto rounded-3xl overflow-hidden shadow-xl border-none w-full">
-      <div className="bg-blue-600 p-6 text-center text-white">
-        <a 
-          href="https://smartsubhaportfolio.netlify.app" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="text-sm font-medium opacity-80 hover:opacity-100 hover:underline mb-1 inline-block cursor-pointer"
-        >
-          © Smart Subha ↗
-        </a>
-        <div className="font-bold tracking-wider">Founder of StudySnap</div>
-      </div>
-      <CardContent className="p-8 flex flex-col items-center gap-6">
-        <div className="p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-50">
-          <QRCodeSVG value="upi://pay?pa=lazysubhajit@fam&pn=StudySnap&cu=INR" size={200} />
-        </div>
-        <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <ShieldCheck size={16} className="text-green-500" />
-          Secure Payment via UPI
-        </div>
-      </CardContent>
-    </Card>
-
-    <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl text-blue-800 text-sm flex gap-3">
-      <HelpCircle className="shrink-0" />
-      <p>Your contribution helps us provide free notes and maintain the StudySnap platform for everyone.</p>
-    </div>
-  </div>
-);
 
 const ProfileEditDialog = ({ profile, onUpdate }: { profile: UserProfile, onUpdate: (data: Partial<UserProfile>) => void }) => {
   const [isOpen, setIsOpen] = useState(false);

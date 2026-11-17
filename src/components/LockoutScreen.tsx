@@ -72,10 +72,7 @@ const startSirenAudio = () => {
 };
 
 export function LockoutScreen({ profile, onUnlocked }: { profile: UserProfile, onUnlocked?: () => void }) {
-  // ADMIN IMMUNITY: The Administrator is 100% exempt and will never be locked out
-  if (profile.role === 'admin' || isAuthorizedAdminEmail(profile.email)) {
-    return null;
-  }
+  const isAdminExempt = profile.role === 'admin' || isAuthorizedAdminEmail(profile.email);
 
   const [passwordInput, setPasswordInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,7 +82,7 @@ export function LockoutScreen({ profile, onUnlocked }: { profile: UserProfile, o
 
   // Real-time automatic remote unlock listener from Administrator
   useEffect(() => {
-    if (!profile?.uid) return;
+    if (isAdminExempt || !profile?.uid) return;
     const unsub = onSnapshot(doc(db, 'users', profile.uid), (snap) => {
       if (snap.exists()) {
         const udata = snap.data() as UserProfile;
@@ -99,10 +96,11 @@ export function LockoutScreen({ profile, onUnlocked }: { profile: UserProfile, o
       console.warn("Lockout listener error:", err);
     });
     return () => unsub();
-  }, [profile?.uid, onUnlocked]);
+  }, [isAdminExempt, profile?.uid, onUnlocked]);
 
   // Real-time automatic siren activation
   useEffect(() => {
+    if (isAdminExempt) return;
     // If permanent siren is on, force-enable sound sweeps
     if (isPermanentSiren) {
       triggerSoundSiren();
@@ -122,7 +120,7 @@ export function LockoutScreen({ profile, onUnlocked }: { profile: UserProfile, o
       window.removeEventListener('keydown', handleInteraction);
       window.removeEventListener('touchstart', handleInteraction);
     };
-  }, [isPermanentSiren]);
+  }, [isAdminExempt, isPermanentSiren]);
 
   const triggerSoundSiren = () => {
     startSirenAudio();
@@ -187,6 +185,11 @@ export function LockoutScreen({ profile, onUnlocked }: { profile: UserProfile, o
       setLoading(false);
     }
   };
+
+  // ADMIN IMMUNITY: The Administrator is 100% exempt and will never be locked out
+  if (isAdminExempt) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[999999] bg-[#030308] select-none flex flex-col justify-between p-6 sm:p-12 text-white font-sans overflow-y-auto">
